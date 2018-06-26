@@ -1,0 +1,177 @@
+#! /usr/bin/php
+<?php
+
+	// Utils functions
+	
+	function getPromptEntry ($message, $hidden = false) {
+		echo $message . "\n";
+		$handle = fopen ("php://stdin","r");
+		if($hidden) echo "\033[30;40m";
+		$line = trim(fgets($handle));
+		if($hidden) echo "\033[0m";
+		fclose($handle);
+		return $line;
+	}
+	
+	if(empty($_SERVER['argv'][1])) {
+		echo "Usage impulse [init] <project>\n";
+		exit();
+	}
+	
+	switch( $_SERVER['argv'][1] ){
+		case "init":
+			
+			if(empty( $_SERVER['argv'][2] ) || !preg_match("/^[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9]\.[a-zA-Z]{2,}$/i", $_SERVER['argv'][2] )) {
+				echo "Invalid project name\n";
+				echo "Must be a domain ( ex: adjust.be )\n";
+				exit();
+			}
+			
+			$project = $_SERVER['argv'][2];
+						
+			$package = json_decode(file_get_contents('package.json'));
+			$package->name = $project;
+			$package->main = "index.js";
+			$package->description = $project . " front-end";
+			
+			$package->scripts = [
+				'build' => "NODE_ENV=production webpack",
+				'watch' => "php -S 0.0.0.0:4000 | webpack -d --watch",
+			];
+				
+			file_put_contents('package.json', json_encode($package, JSON_PRETTY_PRINT) );
+			
+			echo "Updating Package.json\n";
+			
+			
+				// Remove .git folder
+				echo "Initialize git project\n";
+				
+				exec('rm -rf ./.git');	
+				// init git
+				exec('git init');
+	
+				echo "Updating project\n";
+	
+				passthru('npm install webpack --save-dev');
+				passthru('npm install webpack-cli --save-dev');
+				passthru('npm install autoprefixer --save-dev');
+				passthru('npm install babel-core --save-dev');
+				passthru('npm install babel-eslint --save-dev');
+				passthru('npm install babel-loader --save-dev');
+				passthru('npm install babel-plugin-transform-class-properties --save-dev');
+				passthru('npm install babel-preset-env --save-dev');
+				passthru('npm install browser-sync --save-dev');
+				passthru('npm install browser-sync-webpack-plugin --save-dev');
+				passthru('npm install clean-webpack-plugin --save-dev');
+				passthru('npm install css-loader --save-dev');
+				passthru('npm install eslint --save-dev');
+				passthru('npm install eslint-config-standard --save-dev');
+				passthru('npm install eslint-loader --save-dev');
+				passthru('npm install eslint-plugin-import --save-dev');
+				passthru('npm install eslint-plugin-node --save-dev');
+				passthru('npm install eslint-plugin-promise --save-dev');
+				passthru('npm install eslint-plugin-standard --save-dev');
+				passthru('npm install extract-text-webpack-plugin@next --save-dev');
+				passthru('npm install file-loader --save-dev');
+				passthru('npm install img-loader --save-dev');
+				passthru('npm install --unsafe-perms node-sass --save-dev');
+				passthru('npm install postcss-loader --save-dev');
+				passthru('npm install purify-css --save-dev');
+				passthru('npm install purifycss-webpack --save-dev');
+				passthru('npm install sass-loader --save-dev');
+				passthru('npm install style-loader --save-dev');
+				passthru('npm install url-loader --save-dev');
+				   
+				passthru('npm install font-awesome --save');
+				passthru('npm install jquery --save');
+				
+				passthru('npm audit fix');
+								
+				if(!empty( $_SERVER['argv'][3] )) {
+					switch(trim($_SERVER['argv'][3])) {
+						case '--start':
+							passthru('npm run watch');
+							break;
+					}
+				} else {
+
+					echo "\n\n";
+					
+					echo "To build your files run :\n";
+					echo "npm run build\n";
+					
+					echo "\n";
+				
+					echo "To watch your files run :\n";
+					echo "npm run watch\n";
+				}
+				
+			break;
+			
+		case "deploy" :
+			
+			function exitOnInvalidEnv() {
+				echo "Invalid environnement\n";
+				echo "Must be staging or production\n";
+				exit();
+			}
+			
+			if(empty( $_SERVER['argv'][2] )) {
+				exitOnInvalidEnv();
+			}
+			
+			$package = json_decode(file_get_contents('package.json'));
+			$project = $package->name;
+			
+			if(empty(trim($project))) {
+				echo "Invalid domain name\n";
+				echo "Use impulse init first\n";
+				exit();
+			}
+			
+			$remote = exec("git remote -v | grep push");
+			preg_match("/(https?:\/\/.*\.git)/i", $remote, $matches);
+
+			if(empty($matches[1])) {
+				echo "Invalid remote repository\n";
+				echo "Push git project to remote server first\n";
+				exit();
+			};
+			
+			$repository 	= trim(strtolower($matches[1]));
+			$isFramework	= is_dir( __DIR__ . '/public' );
+			
+			switch(trim($_SERVER['argv'][2])){
+				case 'staging':
+				
+					$options = '';
+					if( $isFramework ) $options .= ' --with-framework';
+					
+					$username = getPromptEntry("Enter your dev.adjust.be username :");
+					
+					$command = 'ssh ' . $username . '@dev.adjust.be "/usr/bin/adjtools -d staging --with-project ' . $project . ' --with-remote ' . $repository . $options . '"';
+					passthru($command);
+					
+					break;
+					
+				case 'production':
+				
+					$options = '';
+					if( $isFramework ) $options .= ' --with-framework';
+					
+					$username = getPromptEntry("Enter your dev.adjust.be username :");
+					
+					$command = 'ssh ' . $username . '@dev.adjust.be "/usr/bin/adjtools -d production --with-project ' . $project . ' ' . $options . '"';
+					passthru($command);
+					
+					break;
+				default:
+					exitOnInvalidEnv();
+			}
+			
+			break;
+		default:
+			echo "Unknown command " . $_SERVER['argv'][1] . "\n";
+			exit();
+	}
