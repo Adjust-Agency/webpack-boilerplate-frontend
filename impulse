@@ -3,14 +3,23 @@
 
 	// Utils functions
 	
-	function getPromptEntry ($message, $hidden = false) {
-		echo $message . "\n";
+	function getPromptEntry ($message, $hidden = false, $br = true) {
+		echo $message;
+		if($br) echo "\n";
 		$handle = fopen ("php://stdin","r");
 		if($hidden) echo "\033[30;40m";
 		$line = trim(fgets($handle));
 		if($hidden) echo "\033[0m";
 		fclose($handle);
 		return $line;
+	}
+	
+	function addSlashLastChar($text) {
+		return substr( preg_replace("`/+`", "/", $text ), -1) !== '/' ? $text . '/' : $text ;
+	}
+	
+	function stripSlashLastChar($text) {
+		return substr( preg_replace("`/+`", "/", $text ), -1) === '/' ? substr($text, 0, -1) : $text ;
 	}
 	
 	if(empty($_SERVER['argv'][1])) {
@@ -28,7 +37,15 @@
 			}
 			
 			$project = $_SERVER['argv'][2];
-						
+			
+			$base = getPromptEntry("Set base folder (default: ./ ): ", false, false);
+			$source = getPromptEntry("Set source folder (default: src ): ", false, false);
+			$dist = getPromptEntry("Set destination folder (default: dist ): ", false, false);
+				
+			$base = empty(trim($base)) ? "./" : addSlashLastChar($base); 
+			$source = empty(trim($source)) ? "src" : stripSlashLastChar($source); 
+			$dist = empty(trim($dist)) ? "dist" : stripSlashLastChar($dist); 
+								
 			$package = json_decode(file_get_contents('package.json'));
 			$package->name = $project;
 			$package->main = "index.js";
@@ -37,6 +54,12 @@
 			$package->scripts = [
 				'build' => "NODE_ENV=production webpack",
 				'watch' => "php -S 0.0.0.0:4000 | webpack -d --watch",
+			];
+			
+			$package->devConfig = [
+				'base' 	=> $base,
+				'src' 	=> $source,
+				'dist' 	=> $dist
 			];
 				
 			file_put_contents('package.json', json_encode($package, JSON_PRETTY_PRINT) );

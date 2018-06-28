@@ -12,11 +12,13 @@ const BrowserSyncPlugin = require('browser-sync-webpack-plugin');
 const PurifyCSSPlugin = require('purifycss-webpack');
 const CleanPlugin = require('clean-webpack-plugin');
 
+const PACKAGE = require('./package.json');
+
 const options = {
 	
-	base: './',
-	src : 'src',
-	dist : 'dist',
+	base: PACKAGE.hasOwnProperty('devConfig') && PACKAGE.devConfig.hasOwnProperty('base') ? PACKAGE.devConfig.base : './' ,
+	src : PACKAGE.hasOwnProperty('devConfig') && PACKAGE.devConfig.hasOwnProperty('src') ? PACKAGE.devConfig.src : 'src',
+	dist : PACKAGE.hasOwnProperty('devConfig') && PACKAGE.devConfig.hasOwnProperty('dist') ? PACKAGE.devConfig.dist : 'dist',
 	
 	mode : isProduction ? 'production' : 'development',
 	sourcemaps : !isProduction,
